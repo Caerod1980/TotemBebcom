@@ -414,6 +414,116 @@
             font-style: italic;
         }
 
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-header {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #ff6b6b;
+            padding-bottom: 15px;
+        }
+
+        .modal-body {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .modal-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        .modal-item-name {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .modal-item-price {
+            color: #ff6b6b;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .modal-total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff6b6b;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            text-align: right;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .modal-btn-confirm:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .modal-btn-cancel {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+        }
+
+        .modal-btn-cancel:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        }
+
         /* ANIMAÇÕES */
         @keyframes slideDown {
             from {
@@ -569,6 +679,19 @@
     <div class="menu-page" id="menuPage">
         <h1 class="menu-title" id="menuTitle">Drinks Whisky</h1>
         <div class="products-container" id="productsContainer"></div>
+    </div>
+
+    <!-- MODAL DE CONFIRMACAO -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header">Resumo do Pedido</div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-total" id="modalTotal">Total: R$ 0,00</div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-confirm" onclick="sendToWhatsApp()">Confirmar e Enviar</button>
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancelar</button>
+            </div>
+        </div>
     </div>
 
     <!-- CARRINHO -->
@@ -820,24 +943,60 @@
             }
         }
 
-        // FINALIZAR PEDIDO
+        // ABRIR MODAL DE CONFIRMACAO
         function checkout() {
             if (cart.length === 0) {
                 alert('Carrinho vazio! Adicione itens antes de finalizar.');
                 return;
             }
 
-            let message = 'PEDIDO:\n\n';
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = '';
             let total = 0;
 
             cart.forEach(item => {
-                message += `${item.name} - R$ ${item.price.toFixed(2)}\n`;
+                total += item.price;
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'modal-item';
+                itemDiv.innerHTML = `
+                    <span class="modal-item-name">${item.name}</span>
+                    <span class="modal-item-price">R$ ${item.price.toFixed(2)}</span>
+                `;
+                modalBody.appendChild(itemDiv);
+            });
+
+            document.getElementById('modalTotal').textContent = `Total: R$ ${total.toFixed(2)}`;
+            document.getElementById('confirmModal').classList.add('show');
+        }
+
+        // FECHAR MODAL
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('show');
+        }
+
+        // ENVIAR PARA WHATSAPP
+        function sendToWhatsApp() {
+            if (cart.length === 0) {
+                alert('Carrinho vazio!');
+                return;
+            }
+
+            let message = 'Olá! Gostaria de fazer um pedido:%0A%0A';
+            let total = 0;
+
+            cart.forEach(item => {
+                message += `• ${item.name} - R$ ${item.price.toFixed(2)}%0A`;
                 total += item.price;
             });
 
-            message += `\nTOTAL: R$ ${total.toFixed(2)}`;
+            message += `%0A*TOTAL: R$ ${total.toFixed(2)}*`;
 
-            alert(message + '\n\nPedido enviado com sucesso!');
+            const phoneNumber = '5514996130369';
+            const whatsappURL = `https://wa.me/${phoneNumber}?text=${message}`;
+
+            window.open(whatsappURL, '_blank');
+
+            closeModal();
             cart = [];
             updateCart();
         }
@@ -847,3 +1006,4 @@
     </script>
 </body>
 </html>
+
