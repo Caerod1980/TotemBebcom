@@ -1,68 +1,10 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BebCom Lounge - Totem de Pedidos</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
     <style>
-        :root {
-            --primary-color: #2c1810;
-            --secondary-color: #d4af37;
-            --accent-color: #8b4513;
-            --background-color: #f8f6f3;
-            --card-background: #ffffff;
-            --text-primary: #2c1810;
-            --text-secondary: #6b5b47;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --shadow-light: 0 2px 10px rgba(44, 24, 16, 0.1);
-            --shadow-medium: 0 4px 20px rgba(44, 24, 16, 0.15);
-            --shadow-heavy: 0 8px 30px rgba(44, 24, 16, 0.2);
-            --border-radius: 12px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -70,1399 +12,851 @@
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--background-color) 0%, #f0ede8 100%);
-            color: var(--text-primary);
-            line-height: 1.6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #333;
             min-height: 100vh;
         }
 
         .header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
             color: white;
             text-align: center;
-            padding: 2rem;
-            box-shadow: var(--shadow-medium);
+            padding: 25px 20px;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f, #4d96ff);
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: none;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background: rgba(255, 107, 107, 0.9);
+            transform: translateX(-5px);
+        }
+
+        .back-button.show {
+            display: block;
+        }
+
+        /* PÁGINA INICIAL - HOME */
+        .home-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .home-page.hidden {
+            display: none;
+        }
+
+        .home-title {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+            animation: slideDown 0.6s ease;
+        }
+
+        .home-title h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .home-title p {
+            font-size: 18px;
+            color: #ddd;
+            font-weight: 300;
+        }
+
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            max-width: 1400px;
+            width: 100%;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .category-button {
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+            border: none;
+            padding: 40px 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            color: #000;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
         }
 
-        .header::before {
+        .category-button::before {
             content: '';
             position: absolute;
             top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.3;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-            position: relative;
-            z-index: 1;
-        }
-
-        .search-container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .search-box {
-            position: relative;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .search-input {
+            left: -100%;
             width: 100%;
-            padding: 1rem 1rem 1rem 3rem;
-            border: 2px solid transparent;
-            border-radius: var(--border-radius);
-            background: var(--card-background);
-            box-shadow: var(--shadow-light);
-            font-size: 1rem;
-            transition: var(--transition);
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s ease;
         }
 
-        .search-input:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            box-shadow: var(--shadow-medium);
+        .category-button:hover::before {
+            left: 100%;
         }
 
-        .search-icon {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-secondary);
+        .category-button:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem 1rem;
-            display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 2rem;
+        .category-button:active {
+            transform: translateY(-5px);
         }
 
-        .products-grid {
-            display: grid;
-            gap: 2rem;
+        .category-button.whisky {
+            background: linear-gradient(135deg, #d4a574 0%, #8b6f47 100%);
+            color: white;
         }
 
-        .category {
-            background: var(--card-background);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            box-shadow: var(--shadow-light);
-            transition: var(--transition);
-            border: 1px solid rgba(212, 175, 55, 0.1);
+        .category-button.gin {
+            background: linear-gradient(135deg, #87ceeb 0%, #4a90e2 100%);
+            color: white;
         }
 
-        .category:hover {
-            box-shadow: var(--shadow-medium);
-            transform: translateY(-2px);
+        .category-button.vodka {
+            background: linear-gradient(135deg, #e0e0e0 0%, #b0b0b0 100%);
+            color: #000;
         }
 
-        .category-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--secondary-color);
+        .category-button.vinho {
+            background: linear-gradient(135deg, #8b0000 0%, #d4004a 100%);
+            color: white;
+        }
+
+        .category-button.cerveja {
+            background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
+            color: #000;
+        }
+
+        .category-button.destilado {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+
+        .category-button.agua {
+            background: linear-gradient(135deg, #00bfff 0%, #1e90ff 100%);
+            color: white;
+        }
+
+        .category-button.refri-lata {
+            background: linear-gradient(135deg, #ff8c42 0%, #ff6b35 100%);
+            color: white;
+        }
+
+        .category-button.refri-pet {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+        }
+
+        .category-button.suco {
+            background: linear-gradient(135deg, #ff8c00 0%, #ffa500 100%);
+            color: white;
+        }
+
+        .category-button.energetico {
+            background: linear-gradient(135deg, #9932cc 0%, #da70d6 100%);
+            color: white;
+        }
+
+        .category-button.gelo-carvao {
+            background: linear-gradient(135deg, #696969 0%, #2f4f4f 100%);
+            color: white;
         }
 
         .category-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--secondary-color), #f4d03f);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 1rem;
-            color: var(--primary-color);
-            font-size: 1.2rem;
+            font-size: 40px;
+            margin-bottom: 10px;
+            display: block;
         }
 
-        .category h2 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--primary-color);
+        /* PÁGINA DO MENU */
+        .menu-page {
+            display: none;
+            padding: 100px 20px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        .products-list {
+        .menu-page.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .menu-title {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 36px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .products-container {
             display: grid;
-            gap: 0.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
         }
 
-        .product {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: rgba(248, 246, 243, 0.5);
-            border-radius: 8px;
-            transition: var(--transition);
-            border: 1px solid transparent;
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            animation: slideUp 0.5s ease;
         }
 
-        .product:hover {
-            background: rgba(212, 175, 55, 0.1);
-            border-color: var(--secondary-color);
-            transform: translateX(3px);
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
 
         .product-name {
-            flex: 1;
-            font-weight: 500;
-            color: var(--text-primary);
-            min-width: 150px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
         }
 
         .product-price {
-            font-weight: 600;
-            color: var(--secondary-color);
-            font-size: 1rem;
-            min-width: 80px;
-            text-align: right;
-            margin-right: 1rem;
+            font-size: 20px;
+            color: #ff6b6b;
+            font-weight: bold;
+            margin-bottom: 15px;
         }
 
-        .add-btn {
-            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        .product-button {
+            background: linear-gradient(135deg, #000000 0%, #333333 100%);
             color: white;
             border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 8px;
             cursor: pointer;
-            font-weight: 500;
-            font-size: 0.9rem;
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: all 0.3s ease;
         }
 
-        .add-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-light);
+        .product-button:hover {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            transform: scale(1.02);
         }
 
-        .add-btn:active {
-            transform: translateY(0);
+        .product-button:active {
+            transform: scale(0.98);
         }
 
-        .cart-sidebar {
-            position: sticky;
-            top: 2rem;
-            height: fit-content;
-            background: var(--card-background);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            box-shadow: var(--shadow-medium);
-            border: 1px solid rgba(212, 175, 55, 0.2);
-        }
-
-        .cart-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--secondary-color);
+        /* CARRINHO */
+        .cart {
+            position: fixed;
+            right: 20px;
+            top: 100px;
+            width: 320px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            max-height: 70vh;
+            overflow-y: auto;
+            z-index: 999;
+            animation: slideInRight 0.5s ease;
         }
 
         .cart-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: var(--primary-color);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .cart-count {
-            background: var(--secondary-color);
-            color: var(--primary-color);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #000;
+            border-bottom: 2px solid #ff6b6b;
+            padding-bottom: 10px;
         }
 
         .cart-items {
-            max-height: 300px;
+            margin-bottom: 15px;
+            max-height: 40vh;
             overflow-y: auto;
-            margin-bottom: 1.5rem;
         }
 
         .cart-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            background: rgba(248, 246, 243, 0.7);
+            margin: 10px 0;
+            padding: 10px;
+            background: #f9f9f9;
             border-radius: 8px;
-            transition: var(--transition);
-        }
-
-        .cart-item:hover {
-            background: rgba(212, 175, 55, 0.1);
-        }
-
-        .cart-item-info {
-            flex: 1;
+            font-size: 14px;
         }
 
         .cart-item-name {
+            flex: 1;
             font-weight: 500;
-            font-size: 0.9rem;
-            color: var(--text-primary);
         }
 
         .cart-item-price {
-            color: var(--secondary-color);
-            font-weight: 600;
-            font-size: 0.9rem;
+            color: #ff6b6b;
+            font-weight: bold;
+            margin: 0 10px;
         }
 
-        .quantity-controls {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .quantity-btn {
-            width: 24px;
-            height: 24px;
-            border: none;
-            border-radius: 4px;
-            background: var(--secondary-color);
-            color: var(--primary-color);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            transition: var(--transition);
-        }
-
-        .quantity-btn:hover {
-            background: var(--accent-color);
+        .cart-item-remove {
+            background: #dc3545;
             color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
         }
 
-        .quantity {
-            font-weight: 600;
-            min-width: 20px;
-            text-align: center;
+        .cart-item-remove:hover {
+            background: #c82333;
         }
 
         .cart-total {
-            background: linear-gradient(135deg, var(--secondary-color), #f4d03f);
-            color: var(--primary-color);
-            padding: 1rem;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f0f0f0;
             border-radius: 8px;
-            text-align: center;
-            font-size: 1.2rem;
-            font-weight: 700;
-            margin-bottom: 1.5rem;
+            text-align: right;
+            color: #ff6b6b;
         }
 
-        .customer-input {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            background: rgba(248, 246, 243, 0.7);
-            font-size: 1rem;
-            margin-bottom: 1rem;
-            transition: var(--transition);
-        }
-
-        .customer-input:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-            background: white;
-        }
-
-        .checkout-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--success-color), #34ce57);
-            border: none;
-            padding: 1rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
+        .cart-buttons {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+            gap: 10px;
+            margin-top: 15px;
         }
 
-        .checkout-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-medium);
-        }
-
-        .checkout-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .clear-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--danger-color), #e74c3c);
+        .checkout {
+            flex: 1;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             border: none;
-            padding: 0.75rem;
+            padding: 12px;
             border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 500;
             cursor: pointer;
-            transition: var(--transition);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
         }
 
-        .clear-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-light);
+        .checkout:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
         }
 
-        .empty-cart {
-            text-align: center;
-            color: var(--text-secondary);
-            padding: 2rem 0;
-        }
-
-        .empty-cart i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--success-color);
+        .clear-cart {
+            flex: 1;
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
             color: white;
-            padding: 1rem 1.5rem;
+            border: none;
+            padding: 12px;
             border-radius: 8px;
-            box-shadow: var(--shadow-medium);
-            transform: translateX(400px);
-            transition: var(--transition);
-            z-index: 1000;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
         }
 
-        .notification.show {
-            transform: translateX(0);
+        .clear-cart:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
         }
 
-        .notification.error {
-            background: var(--danger-color);
+        .cart-empty {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
         }
 
-        @media (max-width: 1024px) {
-            .container {
-                grid-template-columns: 1fr;
-                gap: 1rem;
+        /* ANIMAÇÕES */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
             }
-
-            .cart-sidebar {
-                position: relative;
-                top: 0;
-                order: -1;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .container {
-                padding: 1rem;
-            }
-
-            .category {
-                padding: 1rem;
-            }
-
-            .product {
-                padding: 0.5rem;
-            }
-
-            .product-name {
-                font-size: 0.9rem;
-                min-width: 120px;
-            }
-
-            .product-price {
-                font-size: 0.9rem;
-                min-width: 60px;
-                margin-right: 0.5rem;
-            }
-
-            .add-btn {
-                padding: 0.4rem 0.8rem;
-                font-size: 0.8rem;
-            }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
-        .bounce-in {
-            animation: bounceIn 0.3s ease-out;
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        @keyframes bounceIn {
-            0% { transform: scale(0.8); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* RESPONSIVO */
+        @media (max-width: 768px) {
+            .home-title h1 {
+                font-size: 32px;
+            }
+
+            .categories-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .cart {
+                position: static;
+                width: 100%;
+                margin-top: 20px;
+                max-height: none;
+            }
+
+            .menu-page {
+                padding: 80px 15px 20px;
+            }
+
+            .products-container {
+                grid-template-columns: 1fr;
+            }
+
+            .back-button {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .home-title h1 {
+                font-size: 24px;
+            }
+
+            .home-title p {
+                font-size: 14px;
+            }
+
+            .category-button {
+                padding: 30px 15px;
+                font-size: 16px;
+            }
+
+            .category-icon {
+                font-size: 30px;
+            }
+
+            .menu-title {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1><i class="fas fa-cocktail"></i> BebCom Lounge</h1>
-        <p>Totem de Pedidos - Faça seu pedido com facilidade</p>
-    </div>
-    <div class="search-container">
-        <div class="search-box">
-            <i class="fas fa-search search-icon"></i>
-            <input class="search-input" id="search-input" placeholder="Buscar produtos..." type="text"/>
+    <div class="header">🍹 BebCom Lounge - Totem de Pedidos 🍹</div>
+    
+    <button class="back-button" onclick="goHome()">← Voltar</button>
+
+    <!-- PÁGINA INICIAL -->
+    <div class="home-page" id="homePage">
+        <div class="home-title">
+            <h1>Bem-vindo!</h1>
+            <p>Escolha uma categoria de bebidas para começar</p>
+        </div>
+
+        <div class="categories-grid">
+            <button class="category-button whisky" onclick="showCategory('drinks-whisky', 'Drinks Whisky')">
+                <span class="category-icon">🥃</span>
+                Drinks Whisky
+            </button>
+            <button class="category-button gin" onclick="showCategory('drinks-gin', 'Drinks Gin')">
+                <span class="category-icon">🌿</span>
+                Drinks Gin
+            </button>
+            <button class="category-button vodka" onclick="showCategory('drinks-vodka', 'Drinks Vodka')">
+                <span class="category-icon">❄️</span>
+                Drinks Vodka
+            </button>
+            <button class="category-button vinho" onclick="showCategory('drinks-vinho', 'Drinks Vinho')">
+                <span class="category-icon">🍷</span>
+                Drinks Vinho
+            </button>
+            <button class="category-button cerveja" onclick="showCategory('cervejas', 'Cervejas')">
+                <span class="category-icon">🍺</span>
+                Cervejas
+            </button>
+            <button class="category-button destilado" onclick="showCategory('destilados', 'Destilados')">
+                <span class="category-icon">🥂</span>
+                Destilados
+            </button>
+            <button class="category-button agua" onclick="showCategory('aguas', 'Águas')">
+                <span class="category-icon">💧</span>
+                Águas
+            </button>
+            <button class="category-button refri-lata" onclick="showCategory('refri-latas', 'Refrigerantes (Latas)')">
+                <span class="category-icon">🥫</span>
+                Refri Latas
+            </button>
+            <button class="category-button refri-pet" onclick="showCategory('refri-pet', 'Refrigerantes (PET)')">
+                <span class="category-icon">🧴</span>
+                Refri PET
+            </button>
+            <button class="category-button suco" onclick="showCategory('sucos', 'Sucos')">
+                <span class="category-icon">🧃</span>
+                Sucos
+            </button>
+            <button class="category-button energetico" onclick="showCategory('energeticos', 'Energéticos')">
+                <span class="category-icon">⚡</span>
+                Energéticos
+            </button>
+            <button class="category-button gelo-carvao" onclick="showCategory('gelo-carvao', 'Gelo e Carvão')">
+                <span class="category-icon">🔥</span>
+                Gelo e Carvão
+            </button>
         </div>
     </div>
-    <div class="container">
-        <div class="products-grid" id="products-grid">
-            <div class="category fade-in" data-category="drinks-whisky">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-glass-whiskey"></i></div>
-                    <h2>Drinks Whisky</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Old Star" data-price="11.00">
-                        <div class="product-name">Old Star</div>
-                        <div class="product-price">R$ 11,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Passport" data-price="18.00">
-                        <div class="product-name">Passport</div>
-                        <div class="product-price">R$ 18,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Natu Nobilis" data-price="17.00">
-                        <div class="product-name">Natu Nobilis</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="White Horse" data-price="22.00">
-                        <div class="product-name">White Horse</div>
-                        <div class="product-price">R$ 22,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Red Label" data-price="25.00">
-                        <div class="product-name">Red Label</div>
-                        <div class="product-price">R$ 25,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Ballantine's" data-price="28.00">
-                        <div class="product-name">Ballantine's</div>
-                        <div class="product-price">R$ 28,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Jack Daniel's" data-price="35.00">
-                        <div class="product-name">Jack Daniel's</div>
-                        <div class="product-price">R$ 35,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="drinks-gin">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-cocktail"></i></div>
-                    <h2>Drinks Gin</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Danoninho de Gin" data-price="17.00">
-                        <div class="product-name">Danoninho de Gin</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Copão de Gin" data-price="17.00">
-                        <div class="product-name">Copão de Gin</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="drinks-vodka">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-wine-bottle"></i></div>
-                    <h2>Drinks Vodka</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Danoninho Corote" data-price="15.00">
-                        <div class="product-name">Danoninho Corote</div>
-                        <div class="product-price">R$ 15,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Danoninho Askov" data-price="17.00">
-                        <div class="product-name">Danoninho Askov</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Copão de Ice" data-price="17.00">
-                        <div class="product-name">Copão de Ice</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Copão de Vodka" data-price="17.00">
-                        <div class="product-name">Copão de Vodka</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="drinks-vinho">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-wine-glass"></i></div>
-                    <h2>Drinks Vinho</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Danoninho de Vinho" data-price="17.00">
-                        <div class="product-name">Danoninho de Vinho</div>
-                        <div class="product-price">R$ 17,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="cervejas">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-beer"></i></div>
-                    <h2>Cervejas</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Skol/Brahma" data-price="4.25">
-                        <div class="product-name">Skol/Brahma</div>
-                        <div class="product-price">R$ 4,25</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Antarctica" data-price="4.25">
-                        <div class="product-name">Antarctica</div>
-                        <div class="product-price">R$ 4,25</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Sub-Zero" data-price="4.25">
-                        <div class="product-name">Sub-Zero</div>
-                        <div class="product-price">R$ 4,25</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Amstel" data-price="4.50">
-                        <div class="product-name">Amstel</div>
-                        <div class="product-price">R$ 4,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Heineken" data-price="6.50">
-                        <div class="product-name">Heineken</div>
-                        <div class="product-price">R$ 6,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Corona Long" data-price="8.50">
-                        <div class="product-name">Corona Long</div>
-                        <div class="product-price">R$ 8,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Stella Long" data-price="7.00">
-                        <div class="product-name">Stella Long</div>
-                        <div class="product-price">R$ 7,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Brahma Zero" data-price="5.00">
-                        <div class="product-name">Brahma Zero</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Império" data-price="4.00">
-                        <div class="product-name">Império</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Duplo Malte" data-price="4.50">
-                        <div class="product-name">Duplo Malte</div>
-                        <div class="product-price">R$ 4,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Spaten" data-price="5.00">
-                        <div class="product-name">Spaten</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Budweiser" data-price="5.10">
-                        <div class="product-name">Budweiser</div>
-                        <div class="product-price">R$ 5,10</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Burguesa" data-price="4.00">
-                        <div class="product-name">Burguesa</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Bavaria" data-price="3.50">
-                        <div class="product-name">Bavaria</div>
-                        <div class="product-price">R$ 3,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Bavaria Latão" data-price="4.75">
-                        <div class="product-name">Bavaria Latão</div>
-                        <div class="product-price">R$ 4,75</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Petra" data-price="3.90">
-                        <div class="product-name">Petra</div>
-                        <div class="product-price">R$ 3,90</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conti Malzbier" data-price="4.50">
-                        <div class="product-name">Conti Malzbier</div>
-                        <div class="product-price">R$ 4,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Brahma Malz." data-price="5.00">
-                        <div class="product-name">Brahma Malz</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Moinho Real" data-price="4.25">
-                        <div class="product-name">Moinho Real</div>
-                        <div class="product-price">R$ 4,25</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Original" data-price="5.25">
-                        <div class="product-name">Original</div>
-                        <div class="product-price">R$ 5,25</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Heineken Long" data-price="8.00">
-                        <div class="product-name">Heineken Long</div>
-                        <div class="product-price">R$ 8,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Budweiser Long" data-price="7.50">
-                        <div class="product-name">Budweiser Long</div>
-                        <div class="product-price">R$ 7,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Patagonia Long" data-price="8.50">
-                        <div class="product-name">Patagonia Long</div>
-                        <div class="product-price">R$ 8,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Eisenbahn IPA" data-price="8.50">
-                        <div class="product-name">Eisenbahn IPA</div>
-                        <div class="product-price">R$ 8,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Stella Gold" data-price="7.50">
-                        <div class="product-name">Stella Gold</div>
-                        <div class="product-price">R$ 7,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Amstel Ultra" data-price="6.00">
-                        <div class="product-name">Amstel Ultra</div>
-                        <div class="product-price">R$ 6,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Spaten Long" data-price="7.60">
-                        <div class="product-name">Spaten Long</div>
-                        <div class="product-price">R$ 7,60</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Império Gold" data-price="8.00">
-                        <div class="product-name">Império Gold</div>
-                        <div class="product-price">R$ 8,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conti Zero Grau" data-price="3.50">
-                        <div class="product-name">Conti Zero Grau</div>
-                        <div class="product-price">R$ 3,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="destilados">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-wine-glass-alt"></i></div>
-                    <h2>Destilado</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Jurupinga" data-price="49.00">
-                        <div class="product-name">Jurupinga</div>
-                        <div class="product-price">R$ 49,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Saquê" data-price="30.00">
-                        <div class="product-name">Saquê</div>
-                        <div class="product-price">R$ 30,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Tequila" data-price="23.00">
-                        <div class="product-name">Tequila</div>
-                        <div class="product-price">R$ 23,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Pinga 51" data-price="20.00">
-                        <div class="product-name">Pinga 51</div>
-                        <div class="product-price">R$ 20,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conhaque" data-price="19.00">
-                        <div class="product-name">Conhaque</div>
-                        <div class="product-price">R$ 19,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Dimel" data-price="30.00">
-                        <div class="product-name">Dimel</div>
-                        <div class="product-price">R$ 30,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Campari" data-price="65.00">
-                        <div class="product-name">Campari</div>
-                        <div class="product-price">R$ 65,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Gin Askov" data-price="20.00">
-                        <div class="product-name">Gin Askov</div>
-                        <div class="product-price">R$ 20,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Askov Pura" data-price="17.50">
-                        <div class="product-name">Askov Pura</div>
-                        <div class="product-price">R$ 17,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Ice" data-price="7.00">
-                        <div class="product-name">Ice</div>
-                        <div class="product-price">R$ 7,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Beats Lata" data-price="7.50">
-                        <div class="product-name">Beats Lata</div>
-                        <div class="product-price">R$ 7,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Beats Long" data-price="9.00">
-                        <div class="product-name">Beats Long</div>
-                        <div class="product-price">R$ 9,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Smirnoff Ice" data-price="9.00">
-                        <div class="product-name">Smirnoff Ice</div>
-                        <div class="product-price">R$ 9,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Black Label" data-price="200.00">
-                        <div class="product-name">Black Label</div>
-                        <div class="product-price">R$ 200,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Jack Daniels" data-price="192.00">
-                        <div class="product-name">Jack Daniels</div>
-                        <div class="product-price">R$ 192,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Velho Barreiro" data-price="20.00">
-                        <div class="product-name">Velho Barreiro</div>
-                        <div class="product-price">R$ 20,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Old Star" data-price="18.00">
-                        <div class="product-name">Old Star</div>
-                        <div class="product-price">R$ 18,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Passport" data-price="75.00">
-                        <div class="product-name">Passport</div>
-                        <div class="product-price">R$ 75,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Natu Nobilis" data-price="55.00">
-                        <div class="product-name">Natu Nobilis</div>
-                        <div class="product-price">R$ 55,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="White Horse" data-price="100.00">
-                        <div class="product-name">White Horse</div>
-                        <div class="product-price">R$ 100,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Red Label" data-price="125.00">
-                        <div class="product-name">Red Label</div>
-                        <div class="product-price">R$ 125,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Ballantines" data-price="122.00">
-                        <div class="product-name">Ballantines</div>
-                        <div class="product-price">R$ 122,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Smirnoff" data-price="1L" data-value="46.50">
-                        <div class="product-name">Smirnoff 1L</div>
-                        <div class="product-price">R$ 46,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Askov Sabor 1L" data-price="36.00">
-                        <div class="product-name">Askov Sabor 1L</div>
-                        <div class="product-price">R$ 36,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Canelinha" data-price="25.00">
-                        <div class="product-name">Canelinha</div>
-                        <div class="product-price">R$ 25,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Dom Bosco" data-price="35.00">
-                        <div class="product-name">Dom Bosco</div>
-                        <div class="product-price">R$ 35,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Chapinha" data-price="15.00">
-                        <div class="product-name">Chapinha</div>
-                        <div class="product-price">R$ 15,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="3 Medallas" data-price="35.00">
-                        <div class="product-name">3 Medallas</div>
-                        <div class="product-price">R$ 40,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Pérgola" data-price="35.00">
-                        <div class="product-name">Pérgola</div>
-                        <div class="product-price">R$ 30,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Chalise" data-price="25.00">
-                        <div class="product-name">Chalise</div>
-                        <div class="product-price">R$ 25,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Dom Feliciano" data-price="25.00">
-                        <div class="product-name">Dom Feliciano</div>
-                        <div class="product-price">R$ 25,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Cantinho" data-price="10.00">
-                        <div class="product-name">Cantinho</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Stempel 355ml" data-price="7.00">
-                        <div class="product-name">Stempel 355ml</div>
-                        <div class="product-price">R$ 7,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Stempel 1L" data-price="12.00">
-                        <div class="product-name">Stempel 1L</div>
-                        <div class="product-price">R$ 12,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="non-alcoholic-waters">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-tint"></i></div>
-                    <h2>Águas</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Água 500ml" data-price="3.00">
-                        <div class="product-name">Água 500ml</div>
-                        <div class="product-price">R$ 3,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Água 1,5L" data-price="5.00">
-                        <div class="product-name">Água 1,5L</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Água de Coco 1L" data-price="10.00">
-                        <div class="product-name">Água de Coco 1L</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Água com Gás 500ml" data-price="4.00">
-                        <div class="product-name">Água com Gás 500ml</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Água com Gás 1,5L" data-price="6.00">
-                        <div class="product-name">Água com Gás 1,5L</div>
-                        <div class="product-price">R$ 6,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="H2O 500ml" data-price="5.00">
-                        <div class="product-name">H2O 500ml</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="H2O 1.5L" data-price="9.00">
-                        <div class="product-name">H2O 1.5L</div>
-                        <div class="product-price">R$ 9.00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Gatorade" data-price="6.00">
-                        <div class="product-name">Gatorade</div>
-                        <div class="product-price">R$ 6,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="non-alcoholic-sodas-cans">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-tint"></i></div>
-                    <h2>Refrigerantes (Latas)</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Sprite/Fanta" data-price="5.00">
-                        <div class="product-name">Sprite/Fanta</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Guaraná Antarctica" data-price="5.00">
-                        <div class="product-name">Guaraná Antarctica</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Pepsi" data-price="5.00">
-                        <div class="product-name">Pepsi</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Coca-Cola" data-price="5.00">
-                        <div class="product-name">Coca-Cola</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Schweppes" data-price="5.50">
-                        <div class="product-name">Schweppes</div>
-                        <div class="product-price">R$ 5,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Kuat" data-price="4.00">
-                        <div class="product-name">Kuat</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Tônica" data-price="4.50">
-                        <div class="product-name">Tônica</div>
-                        <div class="product-price">R$ 4,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Sukita" data-price="4.00">
-                        <div class="product-name">Sukita</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="non-alcoholic-sodas-pet">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-tint"></i></div>
-                    <h2>Refrigerantes (PET)</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Coca-Cola 2L" data-price="13.00">
-                        <div class="product-name">Coca-Cola 2L</div>
-                        <div class="product-price">R$ 13,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Sprite 2L" data-price="10.00">
-                        <div class="product-name">Sprite 2L</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Fanta 2L" data-price="10.00">
-                        <div class="product-name">Fanta 2L</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Coca-Cola Retorno 2L" data-price="10.00">
-                        <div class="product-name">Coca-Cola Retorno 2L</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Coca-Cola Mini" data-price="3.50">
-                        <div class="product-name">Coca-Cola Mini</div>
-                        <div class="product-price">R$ 3,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conquista Mini" data-price="3.00">
-                        <div class="product-name">Conquista Mini</div>
-                        <div class="product-price">R$ 3,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Coca-Cola 600ml" data-price="6.50">
-                        <div class="product-name">Coca-Cola 600ml</div>
-                        <div class="product-price">R$ 6,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Coca-Cola 1L" data-price="9.00">
-                        <div class="product-name">Coca-Cola 1L</div>
-                        <div class="product-price">R$ 9,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Sprite 600ml" data-price="6.00">
-                        <div class="product-name">Sprite 600ml</div>
-                        <div class="product-price">R$ 6,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Schweppes 1.5L" data-price="10.50">
-                        <div class="product-name">Schweppes 1.5L</div>
-                        <div class="product-price">R$ 10,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Guaraná Antarctica 2L" data-price="11.00">
-                        <div class="product-name">Guaraná Antarctica 2L</div>
-                        <div class="product-price">R$ 11,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Guaraná Antarctica 1L" data-price="8.00">
-                        <div class="product-name">Guaraná Antarctica 1L</div>
-                        <div class="product-price">R$ 8,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conquista 2L" data-price="8.50">
-                        <div class="product-name">Conquista 2L</div>
-                        <div class="product-price">R$ 8,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conquista 600ml" data-price="5.00">
-                        <div class="product-name">Conquista 600ml</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Quinze 2L" data-price="7.50">
-                        <div class="product-name">Quinze 2L</div>
-                        <div class="product-price">R$ 7,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conti 2L" data-price="8.50">
-                        <div class="product-name">Conti 2L</div>
-                        <div class="product-price">R$ 8,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Conti 600ml" data-price="5.00">
-                        <div class="product-name">Conti 600ml</div>
-                        <div class="product-price">R$ 5,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="non-alcoholic-juices">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-tint"></i></div>
-                    <h2>Sucos</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Del Valle 1L" data-price="10.00">
-                        <div class="product-name">Del Valle 1L</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Del Valle 290ml" data-price="4.00">
-                        <div class="product-name">Del Valle 290ml</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Prats 1.7L" data-price="23.00">
-                        <div class="product-name">Prats 1.7L</div>
-                        <div class="product-price">R$ 23,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Life 300ml" data-price="7.00">
-                        <div class="product-name">Life 300ml</div>
-                        <div class="product-price">R$ 7,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Life 900ml" data-price="14.00">
-                        <div class="product-name">Life 900ml</div>
-                        <div class="product-price">R$ 14,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="energy-drinks">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-bolt"></i></div>
-                    <h2>Energéticos</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Big Power 2L" data-price="12.00">
-                        <div class="product-name">Big Power 2L</div>
-                        <div class="product-price">R$ 12,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Monster 473ml" data-price="12.00">
-                        <div class="product-name">Monster 473ml</div>
-                        <div class="product-price">R$ 12,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Red Bull 250ml" data-price="13.00">
-                        <div class="product-name">Red Bull 250ml</div>
-                        <div class="product-price">R$ 13,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="One 2L" data-price="10.00">
-                        <div class="product-name">One 2L</div>
-                        <div class="product-price">R$ 10,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Baly 2L" data-price="14.00">
-                        <div class="product-name">Baly 2L</div>
-                        <div class="product-price">R$ 14,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="category fade-in" data-category="ice-charcoal">
-                <div class="category-header">
-                    <div class="category-icon"><i class="fas fa-solid fa-cubes"></i></div>
-                    <h2>Gelo e Carvão</h2>
-                </div>
-                <div class="products-list">
-                    <div class="product" data-name="Gelo Saborizado" data-price="3.50">
-                        <div class="product-name">Gelo Saborizado</div>
-                        <div class="product-price">R$ 3,50</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Gelo 4,5Kg" data-price="4.00">
-                        <div class="product-name">Gelo 4,5Kg</div>
-                        <div class="product-price">R$ 4,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Carvão 3Kg" data-price="15.00">
-                        <div class="product-name">Carvão 3Kg</div>
-                        <div class="product-price">R$ 15,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                    <div class="product" data-name="Carvão 6,5Kg" data-price="30.00">
-                        <div class="product-name">Carvão 6,5Kg</div>
-                        <div class="product-price">R$ 30,00</div>
-                        <button class="add-btn"><i class="fas fa-plus"></i> Adicionar</button>
-                    </div>
-                </div>
-            </div>
+
+    <!-- PÁGINA DO MENU -->
+    <div class="menu-page" id="menuPage">
+        <h1 class="menu-title" id="menuTitle">Drinks Whisky</h1>
+        <div class="products-container" id="productsContainer"></div>
+    </div>
+
+    <!-- CARRINHO -->
+    <div class="cart" id="cart">
+        <div class="cart-title">🛒 Meu Carrinho</div>
+        <div class="cart-items" id="cartItems">
+            <div class="cart-empty">Carrinho vazio</div>
         </div>
-        <div class="cart-sidebar">
-            <div class="cart-header">
-                <div class="cart-title">
-                    <i class="fas fa-shopping-cart"></i> Carrinho
-                </div>
-                <div class="cart-count" id="cart-count">0</div>
-            </div>
-            <div class="cart-items" id="cart-items">
-                <div class="empty-cart">
-                    <i class="fas fa-shopping-cart"></i>
-                    <p>Carrinho vazio</p>
-                </div>
-            </div>
-            <div class="cart-total" id="cart-total">Total: R$ 0,00</div>
-            <input class="customer-input" id="customer-name" type="text" placeholder="Digite seu nome..."/>
-            <button class="checkout-btn" id="checkout-btn" disabled><i class="fas fa-check"></i> Finalizar Pedido</button>
-            <button class="clear-btn" id="clear-btn"><i class="fas fa-trash"></i> Limpar</button>
+        <div class="cart-total" id="cartTotal">Total: R$ 0,00</div>
+        <div class="cart-buttons">
+            <button class="checkout" onclick="checkout()">Finalizar</button>
+            <button class="clear-cart" onclick="clearCart()">Limpar</button>
         </div>
     </div>
-    <div class="notification" id="notification"></div>
+
     <script>
-        const cart = [];
-        let customerName = '';
+        // DADOS DOS PRODUTOS
+        const products = {
+            'drinks-whisky': [
+                { name: 'Old Star', price: 11.00 },
+                { name: 'Passport', price: 20.00 },
+                { name: 'Natu Nobilis', price: 20.00 },
+                { name: 'White Horse', price: 24.00 },
+                { name: 'Red Label', price: 30.00 },
+                { name: "Ballantine's", price: 30.00 },
+                { name: "Jack Daniel's", price: 40.00 }
+            ],
+            'drinks-gin': [
+                { name: 'Danoninho de Gin', price: 18.00 },
+                { name: 'Copão de Gin', price: 18.00 }
+            ],
+            'drinks-vodka': [
+                { name: 'Danoninho Corote', price: 16.00 },
+                { name: 'Danoninho Askov', price: 18.00 },
+                { name: 'Copão de Ice', price: 17.00 },
+                { name: 'Copão de Vodka', price: 18.00 }
+            ],
+            'drinks-vinho': [
+                { name: 'Danoninho de Vinho', price: 18.00 }
+            ],
+            'cervejas': [
+                { name: 'Skol/Brahma', price: 4.25 },
+                { name: 'Antarctica', price: 4.25 },
+                { name: 'Sub-Zero', price: 4.25 },
+                { name: 'Amstel', price: 4.00 },
+                { name: 'Heineken', price: 6.50 },
+                { name: 'Corona Long', price: 8.50 },
+                { name: 'Stella Long', price: 7.50 },
+                { name: 'Brahma Zero', price: 5.00 },
+                { name: 'Império', price: 3.50 },
+                { name: 'Duplo Malte', price: 5.00 },
+                { name: 'Spaten', price: 5.50 },
+                { name: 'Budweiser', price: 5.50 },
+                { name: 'Burguesa', price: 3.75 },
+                { name: 'Bavaria', price: 3.25 },
+                { name: 'Bavaria Latão', price: 4.75 },
+                { name: 'Petra', price: 4.00 },
+                { name: 'Conti Malzbier', price: 4.50 },
+                { name: 'Brahma Malz.', price: 5.00 },
+                { name: 'Moinho Real', price: 4.25 },
+                { name: 'Original', price: 5.50 },
+                { name: 'Heineken Long', price: 8.50 },
+                { name: 'Budweiser Long', price: 8.00 },
+                { name: 'Patagônia Long', price: 8.50 },
+                { name: 'Eisenbah IPA', price: 8.50 },
+                { name: 'Stella Gold', price: 8.00 },
+                { name: 'Amstel Ultra', price: 6.50 },
+                { name: 'Spaten Long', price: 8.00 },
+                { name: 'Michelob Long', price: 7.50 },
+                { name: 'Michelob', price: 6.00 },
+                { name: 'Conti Zero Grau', price: 3.00 }
+            ],
+            'destilados': [
+                { name: 'Jurupinga', price: 45.00 },
+                { name: 'Saquê', price: 30.00 },
+                { name: 'Tequila', price: 23.00 },
+                { name: 'Pinga 51', price: 19.00 },
+                { name: 'Conhaque', price: 19.00 },
+                { name: 'Dimel', price: 30.00 },
+                { name: 'Campari', price: 65.00 },
+                { name: 'Gin Askov', price: 20.00 },
+                { name: 'Askov Pura', price: 20.00 },
+                { name: 'Ice', price: 8.00 },
+                { name: 'Beats Lata', price: 7.50 },
+                { name: 'Beats Long', price: 9.00 },
+                { name: 'Smirnoff Ice', price: 10.00 },
+                { name: 'Jack Daniels', price: 200.00 },
+                { name: 'Velho Barreiro', price: 19.00 },
+                { name: 'Vila Velha', price: 15.00 },
+                { name: 'Old Star', price: 17.00 },
+                { name: 'Passport', price: 72.00 },
+                { name: 'Natu Nobilis', price: 54.00 },
+                { name: 'White Horse', price: 97.50 },
+                { name: 'Red Label', price: 135.00 },
+                { name: 'Ballantines', price: 135.00 },
+                { name: 'Smirnoff 1L', price: 56.00 },
+                { name: 'Askov Sabor 1L', price: 20.00 },
+                { name: 'Canelinha', price: 25.00 },
+                { name: 'Dom Bosco', price: 20.00 },
+                { name: 'Chapinha', price: 15.00 },
+                { name: 'Pérgola', price: 35.00 },
+                { name: 'Dom Feliciano', price: 20.00 },
+                { name: 'Cantinho', price: 8.00 },
+                { name: 'Stempel 355ml', price: 7.50 },
+                { name: 'Stempel 600ml', price: 12.00 }
+            ],
+            'aguas': [
+                { name: 'Água 500ml', price: 3.00 },
+                { name: 'Água 1,5L', price: 6.00 },
+                { name: 'Água de Coco 1L', price: 10.00 },
+                { name: 'Água Gás 500ml', price: 3.50 },
+                { name: 'Água Gás 1,5L', price: 7.00 },
+                { name: 'H2O 500ml', price: 5.00 },
+                { name: 'H2O 1,5L', price: 10.00 },
+                { name: 'Gatorade', price: 7.50 }
+            ],
+            'refri-latas': [
+                { name: 'Sprite/Fanta', price: 4.50 },
+                { name: 'Guaraná Antarctica', price: 4.50 },
+                { name: 'Pepsi', price: 4.50 },
+                { name: 'Coca Cola', price: 4.50 },
+                { name: 'Schwepps', price: 5.00 },
+                { name: 'Kuat', price: 4.50 },
+                { name: 'Tônica', price: 4.50 },
+                { name: 'Sukita', price: 4.00 }
+            ],
+            'refri-pet': [
+                { name: 'Coca-Cola 2L', price: 13.00 },
+                { name: 'Sprite 2L', price: 11.00 },
+                { name: 'Fanta 2L', price: 11.00 },
+                { name: 'Coca Retor 2L', price: 9.50 },
+                { name: 'Coca Mini', price: 3.00 },
+                { name: 'Conq. Mini', price: 2.50 },
+                { name: 'Coca 600ml', price: 7.00 },
+                { name: 'Coca Cola 1L', price: 9.00 },
+                { name: 'Sprite 600ml', price: 6.00 },
+                { name: 'Schwepps 1,5L', price: 10.50 },
+                { name: 'Antárctica 2L', price: 12.00 },
+                { name: 'Antárctica 1L', price: 8.00 },
+                { name: 'Conquista 2L', price: 8.50 },
+                { name: 'Quinze 2L', price: 7.00 },
+                { name: 'Conti 2L', price: 8.50 },
+                { name: 'Guaraná Mini', price: 2.50 }
+            ],
+            'sucos': [
+                { name: 'Del Valle 1L', price: 12.00 },
+                { name: 'Prats 300ml', price: 6.00 },
+                { name: 'Kapo', price: 4.00 },
+                { name: 'Prats 1,5L', price: 23.00 },
+                { name: 'Life 900ml', price: 14.00 }
+            ],
+            'energeticos': [
+                { name: 'Big Power 2L', price: 13.00 },
+                { name: 'Monster 473ml', price: 12.00 },
+                { name: 'Red Bull 250ml', price: 14.00 },
+                { name: 'One 2L', price: 10.00 },
+                { name: 'Bally 2L', price: 15.00 },
+                { name: 'Red Bull 355ml', price: 18.00 },
+                { name: 'Bally 473ml', price: 10.00 }
+            ],
+            'gelo-carvao': [
+                { name: 'Gelo Saborizado', price: 3.00 },
+                { name: 'Carvão 3kg', price: 20.00 },
+                { name: 'Gelo 4,5Kg', price: 10.00 },
+                { name: 'Carvão 6,5Kg', price: 30.00 }
+            ]
+        };
 
-        const searchInput = document.getElementById('search-input');
-        const productsGrid = document.getElementById('products-grid');
-        const cartItems = document.getElementById('cart-items');
-        const cartCount = document.getElementById('cart-count');
-        const cartTotal = document.getElementById('cart-total');
-        const customerNameInput = document.getElementById('customer-name');
-        const checkoutBtn = document.getElementById('checkout-btn');
-        const clearButton = document.getElementById('clear-btn');
-        const notification = document.getElementById('notification');
+        let cart = [];
 
-        function showNotification(message, isError = false) {
-            notification.textContent = message;
-            notification.classList.add('show');
-            if (isError) {
-                notification.classList.add('error');
-            }
-            setTimeout(() => {
-                notification.classList.remove('show');
-                notification.classList.remove('error');
-            }, 3000);
-        }
+        // MOSTRAR CATEGORIA
+        function showCategory(categoryId, categoryName) {
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('menuPage').classList.add('show');
+            document.querySelector('.back-button').classList.add('show');
+            document.getElementById('menuTitle').textContent = categoryName;
 
-        function updateCart() {
-            cartItems.innerHTML = cart.length === 0
-                ? '<div class="empty-cart"><i class="fas fa-shopping-cart"></i><p>Carrinho vazio</p></div>'
-                : '';
-            cart.forEach((item, index) => {
-                const cartItem = document.createElement('div');
-                cartItem.classList.add('cart-item', 'bounce-in');
-                cartItem.innerHTML = `
-                    <div class="cart-item-info">
-                        <div class="cart-item-name">${item.name}</div>
-                        <div class="cart-item-price">R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}</div>
-                    </div>
-                    <div class="quantity-controls">
-                        <button class="quantity-btn minus" data-index="${index}">-</button>
-                        <span class="quantity">${item.quantity}</span>
-                        <button class="quantity-btn plus" data-index="${index}">+</button>
-                    </div>
+            const container = document.getElementById('productsContainer');
+            container.innerHTML = '';
+
+            const categoryProducts = products[categoryId] || [];
+            categoryProducts.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-price">R$ ${product.price.toFixed(2)}</div>
+                    <button class="product-button" onclick="addToCart('${product.name.replace(/'/g, "\\'")}', ${product.price})">
+                        Adicionar ao Carrinho
+                    </button>
                 `;
-                cartItems.appendChild(cartItem);
+                container.appendChild(card);
             });
-
-            const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
-            cartTotal.textContent = `Total: R$ ${total.toFixed(2).replace('.', ',')}`;
-            checkoutBtn.disabled = cart.length === 0 || !customerName;
         }
 
+        // VOLTAR PARA HOME
+        function goHome() {
+            document.getElementById('homePage').classList.remove('hidden');
+            document.getElementById('menuPage').classList.remove('show');
+            document.querySelector('.back-button').classList.remove('show');
+        }
+
+        // ADICIONAR AO CARRINHO
         function addToCart(name, price) {
-            const existingItem = cart.find(item => item.name === name);
-            if (existingItem) {
-                existingItem.quantity++;
-            } else {
-                cart.push({ name, price: parseFloat(price), quantity: 1 });
-            }
-            updateCart();
-            showNotification(`${name} adicionado ao carrinho!`);
-        }
-
-        function updateQuantity(index, change) {
-            const item = cart[index];
-            item.quantity = Math.max(1, item.quantity + change);
+            cart.push({ name, price });
             updateCart();
         }
 
-        function clearCart() {
-            cart.length = 0;
-            updateCart();
-            showNotification('Carrinho limpo!');
-        }
+        // ATUALIZAR CARRINHO
+        function updateCart() {
+            const cartItemsDiv = document.getElementById('cartItems');
+            const cartTotalDiv = document.getElementById('cartTotal');
 
-        function validateCustomerName(name) {
-            const nameRegex = /^[A-Za-zÀ-ÿ\s]{2,50}$/;
-            return nameRegex.test(name.trim());
-        }
-
-        function checkout() {
-            if (!customerName || !validateCustomerName(customerName)) {
-                showNotification('Por favor, insira um nome válido (apenas letras e espaços, 2-50 caracteres).', true);
+            if (cart.length === 0) {
+                cartItemsDiv.innerHTML = '<div class="cart-empty">Carrinho vazio</div>';
+                cartTotalDiv.textContent = 'Total: R$ 0,00';
                 return;
             }
 
-            const orderDetails = {
-                customer: customerName,
-                items: cart,
-                total: cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-                date: new Date().toLocaleString('pt-BR')
-            };
+            cartItemsDiv.innerHTML = '';
+            let total = 0;
 
-            let message = `*Novo Pedido - BebCom Lounge*\n\n`;
-            message += `Cliente: ${orderDetails.customer}\n`;
-            message += `Data/Hora: ${orderDetails.date}\n\n`;
-            message += `*Itens:*\n`;
-            orderDetails.items.forEach(item => {
-                message += `- ${item.name} (x${item.quantity}): R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}\n`;
+            cart.forEach((item, index) => {
+                total += item.price;
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'cart-item';
+                itemDiv.innerHTML = `
+                    <span class="cart-item-name">${item.name}</span>
+                    <span class="cart-item-price">R$ ${item.price.toFixed(2)}</span>
+                    <button class="cart-item-remove" onclick="removeFromCart(${index})">✕</button>
+                `;
+                cartItemsDiv.appendChild(itemDiv);
             });
-            message += `\n*Total:* R$ ${orderDetails.total.toFixed(2).replace('.', ',')}`;
 
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://wa.me/+5514996130369?text=${encodedMessage}`;
-
-            showNotification(`Pedido de ${customerName} enviado com sucesso!`);
-            clearCart();
-            customerNameInput.value = '';
-            customerName = '';
-
-            window.open(whatsappUrl, '_blank');
+            cartTotalDiv.textContent = `Total: R$ ${total.toFixed(2)}`;
         }
 
-        productsGrid.addEventListener('click', (e) => {
-            if (e.target.closest('.add-btn')) {
-                const product = e.target.closest('.product');
-                const name = product.dataset.name;
-                const price = product.dataset.price;
-                addToCart(name, price);
+        // REMOVER DO CARRINHO
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCart();
+        }
+
+        // LIMPAR CARRINHO
+        function clearCart() {
+            if (confirm('Tem certeza que deseja limpar o carrinho?')) {
+                cart = [];
+                updateCart();
             }
-        });
+        }
 
-        cartItems.addEventListener('click', (e) => {
-            if (e.target.classList.contains('quantity-btn')) {
-                const index = parseInt(e.target.dataset.index);
-                const change = e.target.classList.contains('plus') ? 1 : -1;
-                updateQuantity(index, change);
+        // FINALIZAR PEDIDO
+        function checkout() {
+            if (cart.length === 0) {
+                alert('Carrinho vazio! Adicione itens antes de finalizar.');
+                return;
             }
-        });
 
-        clearButton.addEventListener('click', clearCart);
+            let message = 'PEDIDO:\n\n';
+            let total = 0;
 
-        checkoutBtn.addEventListener('click', checkout);
-
-        customerNameInput.addEventListener('input', (e) => {
-            customerName = e.target.value;
-            checkoutBtn.disabled = cart.length === 0 || !validateCustomerName(customerName);
-        });
-
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const categories = productsGrid.querySelectorAll('.category');
-            categories.forEach(category => {
-                const products = category.querySelectorAll('.product');
-                let hasVisibleProducts = false;
-                products.forEach(product => {
-                    const name = product.dataset.name.toLowerCase();
-                    const matches = name.includes(searchTerm);
-                    product.style.display = matches ? '' : 'none';
-                    if (matches) hasVisibleProducts = true;
-                });
-                category.style.display = hasVisibleProducts ? '' : 'none';
+            cart.forEach(item => {
+                message += `${item.name} - R$ ${item.price.toFixed(2)}\n`;
+                total += item.price;
             });
-        });
 
+            message += `\nTOTAL: R$ ${total.toFixed(2)}`;
+
+            alert(message + '\n\nPedido enviado com sucesso!');
+            cart = [];
+            updateCart();
+        }
+
+        // INICIALIZAR
         updateCart();
     </script>
 </body>
